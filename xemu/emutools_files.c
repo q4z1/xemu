@@ -28,6 +28,8 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
 #ifdef XEMU_ARCH_WIN
 #include <windows.h>
+#else
+#include <unistd.h>
 #endif
 
 
@@ -621,7 +623,15 @@ int xemu_safe_open_with_mode ( const char *fn, int flags, int mode )
 
 int xemu_save_file ( const char *filename_in, void *data, int size, const char *cry )
 {
-	static const char temp_end[] = ".TMP";
+	// The temporary file carries the process ID: Xemu instances started at the
+	// same time (each one writes its config template at start-up) must not
+	// rename each other's temporary file away.
+	char temp_end[32];
+#ifdef XEMU_ARCH_WIN
+	snprintf(temp_end, sizeof temp_end, ".%lu.TMP", (unsigned long)GetCurrentProcessId());
+#else
+	snprintf(temp_end, sizeof temp_end, ".%ld.TMP", (long)getpid());
+#endif
 	char filename[PATH_MAX];
 	char filename_real[PATH_MAX];
 	strcpy(filename, filename_in);
