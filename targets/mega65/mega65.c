@@ -37,6 +37,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include "memcontent.h"
 #include "xemu/emutools_gui.h"
 #include "audio65.h"
+#include "recorder.h"
 #include "inject.h"
 #include "configdb.h"
 #include "xemu/emutools_socketapi.h"
@@ -823,6 +824,7 @@ int main ( int argc, char **argv )
 	rom_initrom_requested = configdb.useinitrom;
 	rom_from_prefdir_allowed = !configdb.romfromsd;
 	rom_load_custom(configdb.rom);
+	recorder_init(configdb.recvideo, configdb.recaudio);
 	audio65_start();
 	xemu_set_full_screen(configdb.fullscreen_requested);
 	if (!configdb.syscon)

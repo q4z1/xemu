@@ -29,6 +29,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include "xemu/emutools_files.h"
 #include "xemu/basic_text.h"
 #include "io_mapper.h"
+#include "recorder.h"
 
 
 #define SPRITE_SPRITE_COLLISION
@@ -243,6 +244,7 @@ void vic4_close_frame_access ( void )
 		}
 		debug_x_crosshair = TEXTURE_WIDTH;
 	}
+	recorder_frame(pixel_start, TEXTURE_WIDTH, visible_area_height, videostd_frametime);
 #ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
 	// Screenshot
 	if (XEMU_UNLIKELY(vic4_registered_screenshot_request)) {

@@ -55,6 +55,8 @@ struct configdb_st {
 	char	*sdimg;
 	char	*dumpmem;
 	char	*dumpscreen;
+	char	*recvideo;
+	char	*recaudio;
 #ifdef XEMU_FILES_SCREENSHOT_SUPPORT
 	char	*screenshot_and_exit;
 #endif

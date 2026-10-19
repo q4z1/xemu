@@ -239,23 +239,12 @@ static float scalers_left[MIXED_CHANNELS];
 static float scalers_right[MIXED_CHANNELS];
 
 
-static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
+// Renders len stereo samples (interleaved left/right) of all sound sources,
+// mixed. Called by the SDL audio callback, or by the recorder (recorder.c)
+// once per emulated frame.
+void audio65_render_mix ( Sint16 *stereo_out_stream, int len )
 {
 	static Sint16 streams[STREAMS_SIZE_ALL];
-	static int nosound_previous = -1;
-	if (XEMU_UNLIKELY(nosound_previous != configdb.nosound)) {
-		nosound_previous = configdb.nosound;
-		DEBUGPRINT("AUDIO: callback switches to %s mode." NL, configdb.nosound ? "silent" : "working");
-	}
-	if (XEMU_UNLIKELY(configdb.nosound)) {
-		// Render silence ...
-		// Here we use "len" as-is, since it's before the shift operation below, and means BYTES, what SDL is asking from us
-		memset(stereo_out_stream, 0, len);
-		return;
-	}
-	//DEBUGPRINT("AUDIO: audio callback, wants %d bytes to be rendered" NL, len);
-	len >>= 2;	// the size in *SAMPLES* (not in bytes) is /4, since it's a stereo stream, and 2 bytes/sample, we want to render
-	//DEBUGPRINT("AUDIO: audio callback, wants %d samples to be rendered" NL, len);
 	if (XEMU_UNLIKELY(len > AUDIO_BUFFER_SAMPLES_MAX)) {
 		len = AUDIO_BUFFER_SAMPLES_MAX;
 		DEBUGPRINT("AUDIO: ERROR, SDL wants more samples (%d) than buffer size (%d)!" NL, len, AUDIO_BUFFER_SAMPLES_MAX);
@@ -300,8 +289,8 @@ static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
 		if      (right >  0x7FFF) right =  0x7FFF;
 		else if (right < -0x8000) right = -0x8000;
 		// write the output stereo stream for SDL (it's an interlaved left-right-left-right kind of thing)
-		((Sint16*)stereo_out_stream)[j++] = left;
-		((Sint16*)stereo_out_stream)[j++] = right;
+		stereo_out_stream[j++] = left;
+		stereo_out_stream[j++] = right;
 	}
 #ifdef CORRUPTION_DEBUG
 #	warning "You have CORRUPTION_DEBUG enabled"
@@ -310,6 +299,31 @@ static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
 			DEBUGPRINT("AUDIO BUFFER CORRUPTION AT OFFSET: %d" NL, (int)(p - STREAMS(0)));
 	}
 #endif
+}
+
+
+// Set by the recorder: it renders the sound itself, in step with the emulated
+// time, so SDL gets silence (rendering here too would advance the SIDs twice).
+bool audio65_recording = false;
+
+
+static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
+{
+	static int nosound_previous = -1;
+	if (XEMU_UNLIKELY(nosound_previous != configdb.nosound)) {
+		nosound_previous = configdb.nosound;
+		DEBUGPRINT("AUDIO: callback switches to %s mode." NL, configdb.nosound ? "silent" : "working");
+	}
+	if (XEMU_UNLIKELY(configdb.nosound || audio65_recording)) {
+		// Render silence ...
+		// Here we use "len" as-is, since it's before the shift operation below, and means BYTES, what SDL is asking from us
+		memset(stereo_out_stream, 0, len);
+		return;
+	}
+	//DEBUGPRINT("AUDIO: audio callback, wants %d bytes to be rendered" NL, len);
+	len >>= 2;	// the size in *SAMPLES* (not in bytes) is /4, since it's a stereo stream, and 2 bytes/sample, we want to render
+	//DEBUGPRINT("AUDIO: audio callback, wants %d samples to be rendered" NL, len);
+	audio65_render_mix((Sint16*)stereo_out_stream, len);
 }
 #endif
 

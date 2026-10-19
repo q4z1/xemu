@@ -57,6 +57,8 @@ static const struct xemutools_configdef_str_st str_options[] = {
 	{ "sdimg",	SDCARD_NAME, "Override path of SD-image to be used (also see the -virtsd option!)", &configdb.sdimg },
 	{ "dumpmem",	NULL, "Save memory content on exit", &configdb.dumpmem },
 	{ "dumpscreen",	NULL, "Save screen content (ASCII) on exit", &configdb.dumpscreen },
+	{ "recvideo",	NULL, "Record the picture as raw RGB24 frames of 704x576 into a file or named pipe", &configdb.recvideo },
+	{ "recaudio",	NULL, "Record the sound as raw 16 bit signed stereo samples (44100 Hz) into a file or named pipe", &configdb.recaudio },
 #ifdef XEMU_FILES_SCREENSHOT_SUPPORT
 	{ "screenshot",	NULL, "Save screenshot (PNG) on exit and vice-versa (for testing!)", &configdb.screenshot_and_exit },
 #endif
@@ -162,7 +164,7 @@ static const void *do_not_save_opts[] = {
 	&configdb.prg, &configdb.prgmode, &configdb.autoload, &configdb.go64, &configdb.hyperserialfile, &configdb.importbas,
 	&configdb.testing,
 	&configdb.matrixstart,
-	&configdb.dumpmem, &configdb.dumpscreen,
+	&configdb.dumpmem, &configdb.dumpscreen, &configdb.recvideo, &configdb.recaudio,
 #ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
 	&configdb.screenshot_and_exit,
 #endif

@@ -57,5 +57,7 @@ extern bool  audio65_get_mono_downmix ( void );
 extern void  audio65_set_output ( const int val );
 extern int   audio65_get_output ( void );
 extern size_t audio65_get_description ( char *buffer, const size_t buffer_size );
+extern void  audio65_render_mix ( Sint16 *stereo_out_stream, int len );
+extern bool  audio65_recording;
 
 #endif
