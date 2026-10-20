@@ -48,6 +48,11 @@ const Uint8 iomode_hexdigitids[4] = { 2, 3, 0xE, 4 };	// identifier of IO modes 
 // (SDL) target texture rendering pointers
 static Uint32 *current_pixel;					// current_pixel pointer to the rendering target (one current_pixel: 32 bit)
 static Uint32 *pixel_start;					// points to the end and start of the buffer
+#ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
+static Uint32 *last_frame = NULL;			// the last complete frame, for "screenshot on exit"
+static size_t last_frame_size = 0;
+static unsigned int last_frame_height = 0;
+#endif
 static Uint32 *pixel_raster_start;				// first pixel of current raster
 Uint8 vic_registers[0x80];					// VIC4 registers
 static int compare_raster;					// raster compare (9 bits width) data
@@ -246,6 +251,20 @@ void vic4_close_frame_access ( void )
 	}
 	recorder_frame(pixel_start, TEXTURE_WIDTH, visible_area_height, videostd_frametime);
 #ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
+	// "Screenshot on exit": keep every complete frame, so the one written on
+	// exit shows what the program drew in time - also changes made while the
+	// frame was rendered (raster effects), which a frame finished on exit
+	// without the CPU running would lack
+	if (configdb.screenshot_and_exit) {
+		const size_t size = (size_t)TEXTURE_WIDTH * (max_rasters + 1) * sizeof(Uint32);
+		if (!last_frame || last_frame_size < size) {
+			free(last_frame);
+			last_frame = xemu_malloc(size);
+			last_frame_size = size;
+		}
+		memcpy(last_frame, pixel_start, size);
+		last_frame_height = max_rasters + 1;
+	}
 	// Screenshot
 	if (XEMU_UNLIKELY(vic4_registered_screenshot_request)) {
 		unsigned int x1, y1, w, h;
@@ -290,6 +309,24 @@ void vic4_close_frame_access ( void )
 	vic_frame_counter++;
 	vic_frame_counter_since_boot++;
 }
+
+
+#ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
+// "Screenshot on exit": the last complete frame. False if there is none yet.
+bool vic4_screenshot_last_frame ( void )
+{
+	if (!last_frame)
+		return false;
+	return !xemu_screenshot_png(
+		NULL, configdb.screenshot_and_exit,
+		1, 1,
+		last_frame,
+		TEXTURE_WIDTH,
+		last_frame_height,
+		TEXTURE_WIDTH
+	);
+}
+#endif
 
 
 void vic4_freerun_until_frame_close ( void )

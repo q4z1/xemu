@@ -479,7 +479,9 @@ static void shutdown_callback ( void )
 {
 	DEBUGPRINT("XEMU: shutdown callback is running" NL);
 #ifdef	XEMU_FILES_SCREENSHOT_SUPPORT
-	if (configdb.screenshot_and_exit || vic4_registered_screenshot_request) {
+	if (configdb.screenshot_and_exit && vic4_screenshot_last_frame()) {
+		DEBUGPRINT("XEMU: screenshot on exit: the last complete frame" NL);
+	} else if (configdb.screenshot_and_exit || vic4_registered_screenshot_request) {
 		DEBUGPRINT("XEMU: handling pending screenshot request" NL);
 		vic4_registered_screenshot_request = 1;
 		vic4_freerun_until_frame_close();
