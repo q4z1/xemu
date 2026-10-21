@@ -584,10 +584,11 @@ static void interrupt_checker ( void )
 
 static inline void check_raster_interrupt ( int nraster )
 {
+	// The flag stays until it is acknowledged (written to $D019), as on the
+	// real VIC: also when the CPU could not take the interrupt while the line
+	// went by (a DMA job, interrupts off)
 	if (nraster == compare_raster)
 		interrupt_status |= 1;
-	else
-		interrupt_status &= 0xFE;
 	// NOTE: previous versions used interrupt_checker() here. For reasons, I had to remove this, so calling check_raster_interrupt() does not do interrupt_checker() as its own anymore!!
 }
 
