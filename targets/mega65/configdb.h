@@ -110,6 +110,7 @@ struct configdb_st {
 	int	mastervolume;
 	double	fast_mhz;
 	int	nosound;
+	int	audiocallback;
 	int	noopl3;
 	int	sidmask;
 	int	audiobuffersize;

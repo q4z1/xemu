@@ -307,6 +307,79 @@ void audio65_render_mix ( Sint16 *stereo_out_stream, int len )
 bool audio65_recording = false;
 
 
+// The sound in step with the emulated time (unless -audiocallback): rendered
+// raster line by raster line as the emulation goes on, into a FIFO that the
+// SDL audio callback plays from. So what a program writes to the SIDs is
+// heard when it wrote it - within a line - and not whenever the callback
+// happens to render (which moved notes by up to a buffer's length). The
+// emulation thread writes, the callback reads.
+#define FIFO_SAMPLES	16384	// a power of 2
+static Sint16 fifo[2 * FIFO_SAMPLES];
+static SDL_atomic_t fifo_written, fifo_read;	// samples, counting on (wrapping)
+static Uint64 line_time;			// what is left to render, in 1 / (lines * 1000000) samples
+
+
+static inline bool in_step ( void )
+{
+	return audio && !configdb.nosound && !configdb.audiocallback && !audio65_recording;
+}
+
+
+// Called for every raster line: renders the sound it lasted
+void audio65_line ( const int frame_usec, const int lines )
+{
+	if (XEMU_UNLIKELY(!in_step()))
+		return;
+	line_time += (Uint64)frame_usec * system_sound_mix_freq;
+	const Uint64 unit = (Uint64)lines * 1000000U;
+	int n = line_time / unit;
+	if (!n)
+		return;
+	line_time -= n * unit;
+	static Sint16 buffer[2 * 64];
+	if (n > 64)
+		n = 64;
+	audio65_render_mix(buffer, n);
+	const Uint32 w = SDL_AtomicGet(&fifo_written);
+	if (w - (Uint32)SDL_AtomicGet(&fifo_read) + n > FIFO_SAMPLES)
+		return;	// full (nobody plays): dropped
+	for (int i = 0; i < n; i++) {
+		const Uint32 at = 2 * ((w + i) & (FIFO_SAMPLES - 1));
+		fifo[at] = buffer[2 * i];
+		fifo[at + 1] = buffer[2 * i + 1];
+	}
+	SDL_AtomicSet(&fifo_written, w + n);
+}
+
+
+// The callback's side: len samples from the FIFO. Some more than a callback
+// asks for at a time stays in it (the emulation renders a frame's sound in
+// a burst and then waits); more than that is skipped, so that the delay
+// does not grow; when it runs dry the last sample goes on.
+static void play_fifo ( Sint16 *out, const int len )
+{
+	static Sint16 last[2];
+	const Uint32 w = SDL_AtomicGet(&fifo_written);
+	Uint32 r = SDL_AtomicGet(&fifo_read);
+	const Uint32 keep = 2 * len;
+	if (w - r > keep + len)
+		r = w - keep - len;
+	Uint32 n = w - r;
+	if (n > (Uint32)len)
+		n = len;
+	for (Uint32 i = 0; i < n; i++) {
+		const Uint32 at = 2 * ((r + i) & (FIFO_SAMPLES - 1));
+		last[0] = out[2 * i] = fifo[at];
+		last[1] = out[2 * i + 1] = fifo[at + 1];
+	}
+	for (int i = n; i < len; i++) {
+		out[2 * i] = last[0];
+		out[2 * i + 1] = last[1];
+	}
+	SDL_AtomicSet(&fifo_read, r + n);
+}
+
+
 static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
 {
 	static int nosound_previous = -1;
@@ -323,7 +396,10 @@ static void audio_callback ( void *userdata, Uint8 *stereo_out_stream, int len )
 	//DEBUGPRINT("AUDIO: audio callback, wants %d bytes to be rendered" NL, len);
 	len >>= 2;	// the size in *SAMPLES* (not in bytes) is /4, since it's a stereo stream, and 2 bytes/sample, we want to render
 	//DEBUGPRINT("AUDIO: audio callback, wants %d samples to be rendered" NL, len);
-	audio65_render_mix((Sint16*)stereo_out_stream, len);
+	if (configdb.audiocallback)
+		audio65_render_mix((Sint16*)stereo_out_stream, len);
+	else
+		play_fifo((Sint16*)stereo_out_stream, len);
 }
 #endif
 

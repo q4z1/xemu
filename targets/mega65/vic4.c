@@ -30,6 +30,7 @@ Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 #include "xemu/basic_text.h"
 #include "io_mapper.h"
 #include "recorder.h"
+#include "audio65.h"
 
 
 #define SPRITE_SPRITE_COLLISION
@@ -1830,6 +1831,7 @@ bool vic4_render_scanline ( void )
 	if (!(ycounter & 1))
 		check_raster_interrupt(logical_raster);
 	interrupt_checker();	// manage possible IRQs (sprite collision, raster IRQ): was part of check_raster_interrupt(), now it's a separate stuff!
+	audio65_line(videostd_frametime, max_rasters);	// the sound of this line, in step with it
 	return end_of_frame;
 }
 

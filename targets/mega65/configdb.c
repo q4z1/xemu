@@ -110,6 +110,7 @@ static const struct xemutools_configdef_switch_st switch_options[] = {
 	{ "skipunhandledmem", "Do not even ask on unhandled memory access (hides problems!!)", &configdb.skip_unhandled_mem },
 	{ "fullborders", "Show non-clipped display borders", &configdb.fullborders },
 	{ "nosound", "Disables audio output generation", &configdb.nosound },
+	{ "audiocallback", "Render the sound when SDL asks for it, not in step with the emulated time", &configdb.audiocallback },
 	{ "noopl3", "Disables OPL3 emulation", &configdb.noopl3 },
 	{ "lockvideostd", "Lock video standard (programs cannot change it)", &configdb.lock_videostd },
 	{ "curskeyjoy", "Cursor keys as joystick [makes your emulator unsable to move cursor in BASIC/etc!]", &hid_joy_on_cursor_keys },
