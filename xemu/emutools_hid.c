@@ -78,6 +78,19 @@ void hid_set_autoreleased_key ( int key )
 }
 
 
+// Is a host key other than 'key' held that stands for the matrix position 'pos' as well
+// (directly, or as the shift of a shifted key emulation)?
+static int hid_other_key_holds ( SDL_Scancode key, int pos )
+{
+	const Uint8 *held = SDL_GetKeyboardState(NULL);
+	for (const struct KeyMappingUsed *m = key_map; m->pos >= 0; m++)
+		if (m->scan != key && m->pos <= 0xFF && held[m->scan] &&
+		    ((m->pos & ~8) == pos || (pos == virtual_shift_pos && (m->pos & 8))))
+			return 1;
+	return 0;
+}
+
+
 int hid_key_event ( SDL_Scancode key, int pressed )
 {
 	const struct KeyMappingUsed *map = key_map;
@@ -140,9 +153,14 @@ int hid_key_event ( SDL_Scancode key, int pressed )
 				}
 				return emu_callback_key(map->pos, key, pressed, 1);
 			}
+			// A matrix position can stand for more than one host key (cursor left is the
+			// shifted cursor right on C64/C65): it is released only when no other key that
+			// stands for it is still held, e.g. cursor right held while cursor left is let go.
 			if (map->pos & 8)			// shifted key emu?
-				KBD_SET_KEY(virtual_shift_pos, pressed);	// maintain the shift key
-			KBD_SET_KEY(map->pos, pressed);
+				if (pressed || !hid_other_key_holds(key, virtual_shift_pos))
+					KBD_SET_KEY(virtual_shift_pos, pressed);	// maintain the shift key
+			if (pressed || !hid_other_key_holds(key, map->pos & ~8))
+				KBD_SET_KEY(map->pos, pressed);
 			return emu_callback_key(map->pos, key, pressed, 1);
 		}
 		map++;
